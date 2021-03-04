@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fake-project.fullname" . }}-wp
+  labels:
+  {{- include "fake-project.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.wp.replicas }}
+  selector:
+    matchLabels:
+      {{- include "fake-project.selectorLabels" . | nindent 6 }}
+      role: wp
+  template:
+    metadata:
+      labels:
+        {{- include "fake-project.selectorLabels" . | nindent 8 }}
+        role: wp
+    spec:
+      serviceAccountName:  {{ .Values.wp.serviceAccount.name }}
+      containers:
+        - name: {{ .Chart.Name }}-wp
+          image: "{{ .Values.wp.image.repository }}:{{ .Values.wp.image.tag | default "latest" }}"
+          env:
+            - name: MARIADB_HOST
+              value: {{ .Values.wp.config.host }}
+            - name: WORDPRESS_DATABASE_USER
+              value: {{ .Values.wp.config.username }}
+            - name: WORDPRESS_DATABASE_NAME
+              value: {{ .Values.wp.config.database }}
+            - name: WORDPRESS_DATABASE_PASSWORD
+              value: {{ .Values.wp.config.password }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: {{ .Values.wp.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.wp.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.wp.livenessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.wp.livenessProbe.successThreshold }}
+            failureThreshold: {{ .Values.wp.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: {{ .Values.wp.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.wp.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.wp.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.wp.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.wp.readinessProbe.failureThreshold }}
+          resources:
+      {{- toYaml .Values.wp.resources | nindent 12 }}

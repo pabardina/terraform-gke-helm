@@ -1,0 +1,28 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: gke-vs
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - istio-gateway
+  http:
+    - match:
+      - uri:
+          prefix: /test123
+      route:
+        - destination:
+            host: {{ include "fake-project.fullname" . }}
+            port:
+              number: {{ .Values.app.service.port }}
+    - match:
+      - uri:
+          prefix: /
+      rewrite:
+        uri: "/"
+      route:
+        - destination:
+            host: {{ include "fake-project.fullname" . }}-wp
+            port:
+              number: {{ .Values.wp.service.port }}

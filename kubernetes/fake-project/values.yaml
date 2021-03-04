@@ -2,78 +2,118 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
-
-image:
-  repository: nginx
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
-
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-service:
-  type: ClusterIP
-  port: 80
-
-ingress:
-  enabled: false
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths: []
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
 
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 1
-  maxReplicas: 100
+  maxReplicas: 5
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
 
-nodeSelector: {}
+app:
+  service:
+    type: ClusterIP
+    port: 8000
+  image:
+    repository: pabardina/gohostname
+    pullPolicy: IfNotPresent
+    tag: latest
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  resources:
+    limits:
+      cpu: 0.5
+      memory: 500Mi
+    requests:
+      cpu: 0.2
+      memory: 256Mi
 
-tolerations: []
+wp:
+  replicas: 1
+  config:
+    host: "fake-project-cloudsql-proxy"
+    database: "app"
+    password: "supersecret"
+    username: "username"
+    email: test@test.com
+    firstname: first_name
+    lastname: last_name
+    blogName: Blog
+  image:
+    repository: bitnami/wordpress
+    pullPolicy: IfNotPresent
+    tag: 5
+  livenessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 6
+    successThreshold: 1
+  resources:
+    limits:
+      cpu: 2
+      memory: 1Gi
+    requests:
+      cpu: 0.5
+      memory: 300Mi
+  service:
+    type: ClusterIP
+    port: 8080
+  serviceAccount:
+    name: "ksa-app-cloudsql"
+    create: true
+    annotations:
+      iam.gke.io/gcp-service-account: gke-cluster-sa-k8s-cloudsql@YOUR_PROJECT_ID.iam.gserviceaccount.com
 
-affinity: {}
+workload:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: type
+                operator: In
+                values:
+                  - gpu
+  bucket: "gke-cluster-subnet-test-quebec"
+  image:
+    repository: gcr.io/google.com/cloudsdktool/cloud-sdk
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    name: "ksa-app-gcs"
+    create: true
+    annotations:
+      iam.gke.io/gcp-service-account: gke-cluster-sa-k8s-gcs@YOUR_PROJECT_ID.iam.gserviceaccount.com
+  tolerations:
+    - key: "type"
+      operator: "Equal"
+      value: "gpu"
+      effect: "NoSchedule"
+
+cloudSqlProxy:
+  replicas: 3
+  dbPort: 3306
+  instanceConnectionName: "YOUR_PROJECT_ID:northamerica-northeast1:gke-cluster-sql-mysql-57"
+  image:
+    name: "gcr.io/cloudsql-docker/gce-proxy"
+    version: "1.19.2"

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fake-project.fullname" . }}-cloudsql-proxy
+  labels:
+  {{- include "fake-project.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.cloudSqlProxy.replicas }}
+  selector:
+    matchLabels:
+      {{- include "fake-project.selectorLabels" . | nindent 6 }}
+      role: cloudsql-proxy
+  template:
+    metadata:
+      labels:
+        {{- include "fake-project.selectorLabels" . | nindent 8 }}
+        role: cloudsql-proxy
+    spec:
+      serviceAccountName:  {{ .Values.wp.serviceAccount.name }}
+      containers:
+        - name: cloud-sql-proxy
+          image: "{{ .Values.cloudSqlProxy.image.name }}:{{ .Values.cloudSqlProxy.image.version }}"
+          ports:
+            - containerPort: {{ .Values.cloudSqlProxy.dbPort }}
+              protocol: TCP
+          command:
+            - "/cloud_sql_proxy"
+            - "-ip_address_types=PRIVATE"
+            - "-instances={{ required "Missing required .Values.cloudSqlProxy.instanceConnectionName" .Values.cloudSqlProxy.instanceConnectionName }}=tcp:0.0.0.0:{{ .Values.cloudSqlProxy.dbPort }}"
+          securityContext:
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+  {{- include "fake-project.labels" . | nindent 4 }}
+  name: {{ include "fake-project.fullname" . }}-cloudsql-proxy
+spec:
+  ports:
+    - port: {{ .Values.cloudSqlProxy.dbPort }}
+      protocol: TCP
+      name: sql
+      targetPort: {{ .Values.cloudSqlProxy.dbPort }}
+  selector:
+    {{- include "fake-project.selectorLabels" . | nindent 4 }}
+    role: cloudsql-proxy

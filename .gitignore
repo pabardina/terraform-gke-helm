@@ -1,2 +1,6 @@
 .DS_STORE
+terraform/.terraform.tfstate.lock.info
+terraform/.terraform
+terraform.tfst*
+.terraform.lock*
 .idea/

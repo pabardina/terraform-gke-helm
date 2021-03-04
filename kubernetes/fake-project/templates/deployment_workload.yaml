@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fake-project.fullname" . }}-workload
+  labels:
+  {{- include "fake-project.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "fake-project.selectorLabels" . | nindent 6 }}
+      role: workload
+  template:
+    metadata:
+      labels:
+        {{- include "fake-project.selectorLabels" . | nindent 8 }}
+        role: workload
+    spec:
+      serviceAccountName:  {{ .Values.workload.serviceAccount.name }}
+      containers:
+        - name: {{ .Chart.Name }}
+          command: ["/bin/bash", "-c", "gsutil ls gs://{{ .Values.workload.bucket }} && sleep infinity"]
+          image: {{ .Values.workload.image.repository }}:latest
+          resources:
+      {{- toYaml .Values.app.resources | nindent 12 }}
+      {{- with .Values.workload.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.workload.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
